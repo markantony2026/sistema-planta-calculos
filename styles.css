@@ -24,3 +24,6 @@
 @media print{.calculation-panel{break-inside:auto}.calculation-results{margin-top:12px}.calculation-results .metric strong{font-size:16pt}.fresco-table td:nth-child(6){min-width:0}.fresco-table td:nth-child(6) select{display:none}.print-status{display:block}.fresco-table td:nth-child(7) input,td:nth-child(6) input{min-width:0}.fresco-table{font-size:8pt}.status-badge{color:black;background:white;border-color:#888}.pending-metric{border:1px solid #aaa}.fields small{font-size:8pt}.fresco-table td:nth-child(2){width:10%}.panel table input{font-size:8pt}.panel:not(.calculation-panel){break-inside:auto}tfoot{display:table-row-group}}
 .print-value{display:none}
 @media print{td input[data-field]{display:none}.print-value{display:block;white-space:pre-wrap;overflow-wrap:anywhere}}
+.button-link{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 18px;border:1px solid #94a3b8;border-radius:8px;text-decoration:none;font-weight:650;cursor:pointer}
+.history-actions{margin-top:20px}.history-card>div:last-child{flex-wrap:wrap}.calculation-results{margin-bottom:24px}
+@media(max-width:720px){.history-actions>*{flex:1 1 100%}.history-card>div:last-child{width:100%}.history-card button{flex:1 1 30%}}
