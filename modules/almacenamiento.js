@@ -1,6 +1,6 @@
-import {initialState as sacks} from './descarga-sacos.js?v=4';
-import {initialState as fresh} from './descarga-fresco.js?v=4';
-import {initialState as calculation} from './precintos-sal.js?v=4';
+import {initialState as sacks} from './descarga-sacos.js?v=5';
+import {initialState as fresh} from './descarga-fresco.js?v=5';
+import {initialState as calculation} from './calculos-planta.js?v=5';
 export const KEY='planta.sacos.v1';
 const LAST='planta.last-good.v1';
 const known=key=>/^(planta[.\-_]|descarga[.\-_]|sistema[.\-_]planta)/i.test(key);

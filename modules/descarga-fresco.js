@@ -1,8 +1,14 @@
-import {initialState as baseState,number,round,format,escape,referenceKg} from './descarga-sacos.js?v=4';
+import {initialState as baseState,number,round,format,escape,referenceKg} from './descarga-sacos.js?v=5';
 
 export const states = {line:'Pasa a línea',pending:'No pasa a línea (Pendiente)'};
 export function initialState() {
   return {...baseState(),status:'pending',receivedBags:0,destinationOther:'',manualWeight:null,saltBag:25};
+}
+export function demoState(){
+ return {...initialState(),supplier:'PROVEEDOR DE EJEMPLO',reference:2.25,bag:25,status:'pending',demo:true,rows:[
+ {id:crypto.randomUUID(),trays:40,gross:1050,tare:50,status:'line',note:'Dino 1 de prueba'},
+ {id:crypto.randomUUID(),trays:20,gross:560,tare:60,status:'pending',note:'Dino 2 pendiente'},
+ {id:crypto.randomUUID(),trays:30,gross:825,tare:75,status:'line',note:'Dino 3 de prueba'}]};
 }
 export function totals(s) {
   return s.rows.reduce((t,r) => {
@@ -28,7 +34,7 @@ const options=()=>Object.entries(states).map(([value,label])=>`<option value="${
 const header=(key,label,type='text',extra='')=>`<label>${label}<input data-fresco="${key}" type="${type}" ${extra}></label>`;
 export function view() {
   return `<div class="page-heading"><div><p class="eyebrow">SECCIÓN 02 · FRESCO</p><h1>Descarga Fresco (Dinos)</h1><p>Controla bandejas, taras variables y destino del lote.</p></div><span id="lot-badge" class="status-badge"></span></div>
-  <section class="panel"><div class="section-title"><h2><span>01</span> Datos del lote</h2></div><div class="fields">
+  <section class="panel"><div class="section-title"><h2><span>01</span> Datos del lote</h2><button id="f-demo" class="secondary">Cargar datos de prueba</button></div><p id="f-demo-note" class="warning" hidden>Datos de prueba ilustrativos: 3 dinos, 90 bandejas y 2250 kg netos. No corresponden a una descarga real.</p><div class="fields">
   ${header('supplier','Proveedor','text','placeholder="Nombre del proveedor"')}${header('date','Fecha','date','required')}
   <label>Cantidad referencial<div class="joined"><input data-fresco="reference" type="number" min="0" step="any"><select data-fresco="unit" aria-label="Unidad referencial"><option>TON</option><option>KG</option></select></div><small id="f-conversion"></small></label>
   <label>Peso del saco / Presentación del proveedor (kg)<input data-fresco="bag" type="number" min="0.001" step="any" required><small>Editable según el proveedor; no limita la cantidad de sacos recibidos.</small></label>
@@ -40,19 +46,20 @@ export function view() {
   <section class="panel"><div class="section-title"><h2><span>02</span> Pesaje por dinos y bandejas</h2><span id="f-count" class="tag"></span></div>
   <form id="f-form" class="quick-form fresco-form"><label>N° Bandejas<input name="trays" type="number" min="0" step="1" required value="0"></label><label>Peso Bruto (kg)<input name="gross" type="number" min="0" step="any" required inputmode="decimal" placeholder="Producto + dino"></label><label>Peso del Dino / Tara (kg)<input name="tare" type="number" min="0" step="any" required inputmode="decimal" placeholder="Tara de este dino"></label><label>Estado<select name="status">${options()}</select></label><label>Otros / Observaciones<input name="note" placeholder="Observación opcional"></label><button class="primary" type="submit">＋ Agregar dino</button></form>
   <div class="table-wrap"><table class="fresco-table"><thead><tr><th>N° Dino</th><th>N° Bandejas</th><th>Peso Bruto (kg)</th><th>Tara Dino (kg)</th><th>Neto (kg)</th><th>Estado</th><th>Otros / Observaciones</th><th class="no-print">Acción</th></tr></thead><tbody id="f-rows"></tbody><tfoot><tr><th id="f-dinos-total"></th><td id="f-trays-total"></td><td colspan="2">Peso neto total</td><td id="f-net-total"></td><td colspan="3"></td></tr></tfoot></table></div><p id="f-empty" class="empty">Agrega un dino para registrar el primer pesaje.</p></section>
-  <section class="panel no-print"><h2>Precintos y sal en su propia sección</h2><p>Los sacos recibidos se registran según lo enviado por el proveedor. Calcula los insumos aparte, usando este peso neto o un registro guardado.</p><a class="button-link secondary" href="#calculos">Ir a Precintos y sal →</a></section><div class="actions"><button id="f-csv" class="primary">↓ Exportar CSV (;)</button><button id="f-excel" class="secondary">↓ Exportar Excel (.xls)</button><button id="f-print" class="secondary">Imprimir / Guardar PDF</button><button id="f-archive" class="secondary">Guardar registro del día</button><button id="f-new" class="text-button">Guardar y empezar otro</button></div><p class="footnote">Guardado automático en este navegador. Exporta una copia para conservar un respaldo.</p>`;
+  <section class="panel no-print"><h2>Cálculos vinculados a esta descarga</h2><p>Los sacos recibidos se registran según lo enviado por el proveedor. Calcula los insumos aparte, usando este peso neto o un registro guardado.</p><a class="button-link secondary" href="#calculos?origen=fresco">Calcular con esta descarga →</a></section><div class="actions"><button id="f-csv" class="primary">↓ Exportar CSV (;)</button><button id="f-excel" class="secondary">↓ Exportar Excel (.xls)</button><button id="f-print" class="secondary">Imprimir / Guardar PDF</button><button id="f-archive" class="secondary">Guardar registro del día</button><button id="f-new" class="text-button">Guardar y empezar otro</button></div><p class="footnote">Guardado automático en este navegador. Exporta una copia para conservar un respaldo.</p>`;
 }
 export function rowsView(s) {
   return s.rows.map((r,i)=>`<tr data-id="${r.id}"><td data-label="N° Dino">${i+1}</td>${['trays','gross','tare'].map((key,j)=>`<td data-label="${['N° Bandejas','Peso Bruto (kg)','Tara Dino (kg)'][j]}"><input data-field="${key}" aria-label="${['Bandejas','Peso bruto','Tara dino'][j]} fila ${i+1}" type="number" min="0" step="${key==='trays'?'1':'any'}" required value="${r[key]}"></td>`).join('')}<td class="row-net" data-label="Neto (kg)">${format(round(r.gross-r.tare))}</td><td data-label="Estado"><select data-field="status" aria-label="Estado fila ${i+1}" class="status-${r.status}">${options().replace(`value="${r.status}"`,`value="${r.status}" selected`)}</select><span class="print-status">${states[r.status]}</span></td><td data-label="Otros / Observaciones"><input data-field="note" aria-label="Observación fila ${i+1}" value="${escape(r.note)}"></td><td class="no-print"><button class="delete" data-delete="${r.id}" aria-label="Eliminar dino ${i+1}">Eliminar</button></td></tr>`).join('');
 }
 export function exportRows(s) {
   const t=totals(s);
-  return [['Sistema de Control y Cálculos de Planta'],['Descarga Fresco (Dinos)'],['Proveedor',s.supplier],['Fecha',s.date],['Cantidad referencial',s.reference,s.unit],['Referencia kg',referenceKg(s)],['Tipo de saco / Destino kg',s.bag],['Sacos recibidos del proveedor',s.receivedBags??0],['Otros / Destino',s.destinationOther],['Estado general del lote',states[s.status]],[],['N° Dino','N° Bandejas','Peso Bruto kg','Tara Dino kg','Neto kg','Estado','Otros / Observaciones'],...s.rows.map((r,i)=>[i+1,r.trays,r.gross,r.tare,round(r.gross-r.tare),states[r.status],r.note]),['TOTALES',t.trays,'',`${t.dinos} dinos`,t.net],['Pasa a línea kg',t.line],['Pendiente kg',t.pending]];
+  return [['Sistema de Control y Cálculos de Planta'],['Descarga Fresco (Dinos)'],['Proveedor',s.supplier],['Fecha',s.date],['Cantidad referencial',s.reference,s.unit],['Referencia kg',referenceKg(s)],['Tipo de saco / Destino kg',s.bag],['Sacos recibidos del proveedor',s.receivedBags??0],['Otros / Destino',s.destinationOther],['Estado general del lote',states[s.status]],...(s.demo?[['AVISO','Datos de prueba ilustrativos']]:[]),[],['N° Dino','N° Bandejas','Peso Bruto kg','Tara Dino kg','Neto kg','Estado','Otros / Observaciones'],...s.rows.map((r,i)=>[i+1,r.trays,r.gross,r.tare,round(r.gross-r.tare),states[r.status],r.note]),['TOTALES',t.trays,'',`${t.dinos} dinos`,t.net],['Pasa a línea kg',t.line],['Pendiente kg',t.pending]];
 }
-export function mount({state,onSave,onArchive,onDownload,onNew,message}) {
+export function mount({state,onSave,onArchive,onDownload,onNew,onLoadDemo,message}) {
   const s=state,$=selector=>document.querySelector(selector);
   $('#main').onclick=null;
   $('#main').innerHTML=view();
+  const hasEntries=()=>!!(s.rows.length||s.supplier||s.reference||s.receivedBags||s.destinationOther);
   const persist=()=>{onSave(s);update();};
   const reject=(el,previous,text)=>{el.setCustomValidity(text);el.reportValidity();el.setCustomValidity('');el.value=previous;};
   const draw=()=>{$('#f-rows').innerHTML=rowsView(s);};
@@ -66,7 +73,7 @@ export function mount({state,onSave,onArchive,onDownload,onNew,message}) {
     $('#f-dinos-total').textContent=`${t.dinos} dinos`;
     $('#f-trays-total').textContent=`${t.trays} bandejas`;
     $('#f-net-total').textContent=`${format(t.net)} kg`;
-    $('#f-empty').hidden=!!t.dinos;
+    $('#f-empty').hidden=!!t.dinos;$('#f-demo-note').hidden=!s.demo;
 
   }
   document.querySelectorAll('[data-fresco]').forEach(el=>{
@@ -102,10 +109,11 @@ export function mount({state,onSave,onArchive,onDownload,onNew,message}) {
   };
   $('#f-rows').addEventListener('focusout',e=>{const el=e.target;if(!el.dataset.field||el.validity.valid)return;const row=s.rows.find(r=>r.id===el.closest('tr').dataset.id);el.setCustomValidity('');el.value=row[el.dataset.field];message('Valor no válido: se conserva el último dato válido de la fila.');});
   $('#f-rows').onclick=e=>{const button=e.target.closest('[data-delete]');if(!button)return;s.rows=s.rows.filter(r=>r.id!==button.dataset.delete);draw();persist();};
+  $('#f-demo').onclick=()=>{if(hasEntries()&&!confirm('Se conservará el registro actual antes de cargar los datos de prueba. ¿Continuar?'))return;onLoadDemo();};
   $('#f-csv').onclick=()=>onDownload('csv',s,exportRows(s),'fresco');
   $('#f-excel').onclick=()=>onDownload('xls',s,exportRows(s),'fresco');
   $('#f-print').onclick=()=>window.print();
-  $('#f-archive').onclick=()=>s.rows.length||s.supplier||s.reference?onArchive(s,'fresco'):message('Ingresa datos antes de guardar el lote.');
-  $('#f-new').onclick=()=>{if((s.rows.length||s.supplier||s.reference)&&!onArchive(s,'fresco',false))return;onNew();message('Registro anterior conservado. Nuevo lote listo con la fecha de hoy.');};
+  $('#f-archive').onclick=()=>hasEntries()?onArchive(s,'fresco'):message('Ingresa datos antes de guardar el lote.');
+  $('#f-new').onclick=()=>{if(hasEntries()&&!onArchive(s,'fresco',false))return;onNew();message('Registro anterior conservado. Nuevo lote listo con la fecha de hoy.');};
   draw();update();
 }

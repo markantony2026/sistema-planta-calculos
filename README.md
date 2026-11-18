@@ -73,3 +73,15 @@ Registros diarios muestra los borradores con guardado automático además de los
 Esto recupera datos que todavía existen en ese navegador/origen; no puede obtener datos de otro dispositivo, de otro navegador o eliminados sin respaldo. No se agregan registros históricos inventados.
 
 Las cantidades referenciales admiten borrar y volver a escribir, con decimales, sin restaurar el valor anterior durante la escritura. La conversión TON/KG conserva hasta 15 dígitos significativos sin truncar a tres decimales. Los pesos del saco del proveedor y de los sacos de sal son números positivos editables, sin una lista cerrada. La cantidad de sacos recibidos es independiente. Para presentaciones de producto distintas de las estándar, Salado permite elegir explícitamente una de las dos tablas de muestreo disponibles. Las importaciones también aceptan pesos de saco personalizados.
+
+## Cálculos de planta vinculados y datos de prueba Fresco
+
+La sección 03 se llama **Cálculos de planta**, con un registro ampliable de paneles en `modules/calculos-planta.js`. Incluye las fórmulas actuales de precintos y sal; no se agregan fórmulas futuras sin definición.
+
+Cada descarga tiene «Calcular con esta descarga». El modo vinculado mantiene peso neto, proveedor, fecha y presentación sincronizados con el borrador de Fresco o Salado elegido. Al guardar y empezar otra descarga, el vínculo se fija al registro archivado para no cambiar el cálculo anterior por un peso vacío. También pueden vincularse registros ya guardados.
+
+**Ingreso manual** permite editar libremente peso, proveedor, fecha y presentación; cambiar una descarga no altera los valores manuales. Los cálculos guardados se abren con sus valores históricos, sin actualizarse silenciosamente desde un borrador actual. Origen y modo constan en exportaciones y PDF.
+
+Fresco incorpora **Cargar datos de prueba**: proveedor identificado como ejemplo, 3 dinos con taras variables, 90 bandejas, 2250 kg netos y estados mixtos. Son datos ilustrativos, no una transcripción de un registro real. El registro actual se archiva antes de cargar el ejemplo.
+
+Validación Chromium: ejemplo Fresco, conservación del registro previo, sincronización al editar Fresco/Salado, modo manual independiente, persistencia, vínculo fijado al abrir otra descarga, valores históricos inmutables, CSV/PDF y anchos 320/390/768/1440 px sin errores JavaScript.
