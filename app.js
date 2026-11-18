@@ -1,7 +1,7 @@
-import {loadDatabase,writeDatabase,recoveryCandidates,hasData as containsData} from './modules/almacenamiento.js?v=4';
-import * as calc from './modules/precintos-sal.js?v=4';
-import * as fresco from './modules/descarga-fresco.js?v=4';
-import {initialState,demoState,view,rowsView,totals,seals,sampleBags,referenceKg,format,escape,exportRows,round} from './modules/descarga-sacos.js?v=4';
+import {loadDatabase,writeDatabase,recoveryCandidates,hasData as containsData} from './modules/almacenamiento.js?v=5';
+import * as calc from './modules/calculos-planta.js?v=5';
+import * as fresco from './modules/descarga-fresco.js?v=5';
+import {initialState,demoState,view,rowsView,totals,seals,sampleBags,referenceKg,format,escape,exportRows,round} from './modules/descarga-sacos.js?v=5';
 const $=selector=>document.querySelector(selector);
 const loaded=loadDatabase();
 let db=loaded.db;
@@ -14,11 +14,11 @@ for(const data of [db.draft,...db.records.filter(r=>!r.type||r.type==='sacos').m
 }
 let s=db.draft;
 function message(text){ $('#notice').textContent=text; }
-function save(){ db.draft=s; try {writeDatabase(db);$('#save-status').textContent='✓ Guardado en este dispositivo';return true;}catch{$('#save-status').textContent='No se pudo guardar: exporta un respaldo';message('No hay espacio disponible para guardar. Descarga un respaldo antes de continuar.');return false;} }
+function save(){ db.draft=s;syncCalculationLink(); try {writeDatabase(db);$('#save-status').textContent='✓ Guardado en este dispositivo';return true;}catch{$('#save-status').textContent='No se pudo guardar: exporta un respaldo';message('No hay espacio disponible para guardar. Descarga un respaldo antes de continuar.');return false;} }
 // Añadir futuros módulos aquí, con su función de montaje y ruta.
-const modules=[{id:'descarga',label:'01 · Descarga en sacos',mount:mountDownload},{id:'fresco',label:'02 · Descarga Fresco (Dinos)',mount:mountFresco},{id:'calculos',label:'03 · Precintos y sal',mount:mountCalculations},{id:'historial',label:'◷ Registros diarios',mount:mountHistory}];
+const modules=[{id:'descarga',label:'01 · Descarga en sacos',mount:mountDownload},{id:'fresco',label:'02 · Descarga Fresco (Dinos)',mount:mountFresco},{id:'calculos',label:'03 · Cálculos de planta',mount:mountCalculations},{id:'historial',label:'◷ Registros diarios',mount:mountHistory}];
 $('#navigation').innerHTML=modules.map(m=>`<a href="#${m.id}" data-route="${m.id}">${m.label}</a>`).join('');
-function navigate(){const route=location.hash.slice(1)||'descarga',m=modules.find(m=>m.id===route)||modules[0];document.querySelectorAll('[data-route]').forEach(a=>{a.classList.toggle('active',a.dataset.route===m.id);if(a.dataset.route===m.id)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});$('#breadcrumb').textContent=m.id==='descarga'?'Descarga en sacos':m.id==='fresco'?'Descarga Fresco (Dinos)':m.id==='calculos'?'Precintos y sal':'Registros diarios';m.mount();}
+function navigate(){const route=location.hash.slice(1).split('?')[0]||'descarga',m=modules.find(m=>m.id===route)||modules[0];document.querySelectorAll('[data-route]').forEach(a=>{a.classList.toggle('active',a.dataset.route===m.id);if(a.dataset.route===m.id)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});$('#breadcrumb').textContent=m.id==='descarga'?'Descarga en sacos':m.id==='fresco'?'Descarga Fresco (Dinos)':m.id==='calculos'?'Cálculos de planta':'Registros diarios';m.mount();}
 window.addEventListener('hashchange',navigate);
 // Texto imprimible permite envolver observaciones largas sin recortarlas como inputs.
 window.addEventListener('beforeprint',()=>{
@@ -45,9 +45,9 @@ function mountDownload(){
  $('#rows').addEventListener('input',e=>{const el=e.target,key=el.dataset.field;if(!key)return;const row=s.rows.find(r=>r.id===el.closest('tr').dataset.id);if(!row)return;el.setCustomValidity('');const value=key==='note'?el.value:Number(el.value);if(key!=='note'&&(!el.validity.valid||el.value===''||!Number.isFinite(value)||(key==='gross'&&value<row.tare)||(key==='tare'&&value>row.gross))){el.setCustomValidity('Revisa el valor: el neto no puede ser negativo y los sacos deben ser enteros.');return;}row[key]=value;s.demo=false;el.closest('tr').querySelector('.row-net').textContent=format(round(row.gross-row.tare));save();update();});
  $('#rows').addEventListener('focusout',e=>{const el=e.target;if(!el.dataset.field||el.validity.valid)return;const row=s.rows.find(r=>r.id===el.closest('tr').dataset.id);el.setCustomValidity('');el.value=row[el.dataset.field];message('Valor no válido: se conserva el último dato válido de la fila.');});
  $('#rows').addEventListener('click',e=>{const button=e.target.closest('[data-delete]');if(!button)return;s.rows=s.rows.filter(r=>r.id!==button.dataset.delete);s.demo=false;save();drawRows();update();});
- $('#demo').onclick=()=>{if(hasData()&&!confirm('Se archivará el borrador actual y se cargará la hoja ISMAEL. ¿Continuar?'))return;if(hasData()&&!archive(false))return;s=demoState();save();mountDownload();message('Hoja ISMAEL cargada con sus ocho filas originales.');};
+ $('#demo').onclick=()=>{if(hasData()&&!confirm('Se archivará el borrador actual y se cargará la hoja ISMAEL. ¿Continuar?'))return;if(hasData()&&!archive(false))return;pinCalculation('sacos');s=demoState();save();mountDownload();message('Hoja ISMAEL cargada con sus ocho filas originales.');};
  $('#csv').onclick=()=>download('csv');$('#excel').onclick=()=>download('xls');$('#print').onclick=()=>window.print();$('#archive').onclick=()=>archive(true);
- $('#new').onclick=()=>{if(hasData()&&!archive(false))return;s=initialState();save();mountDownload();message('Registro anterior conservado. Nueva descarga lista con la fecha de hoy.');};
+ $('#new').onclick=()=>{if(hasData()&&!archive(false))return;pinCalculation('sacos');s=initialState();save();mountDownload();message('Registro anterior conservado. Nueva descarga lista con la fecha de hoy.');};
  drawRows();update();
 }
 function hasData(){return s.rows.length||s.supplier||s.reference||s.start;}
@@ -58,7 +58,7 @@ function archive(notify){if(!hasData()){if(notify)message('Ingresa datos antes d
 function safeCell(value){return typeof value==='string'&&/^[\s]*[=+\-@]/.test(value)?"'"+value:value;}
 export function csvText(rows){return '\uFEFF'+rows.map(row=>row.map(value=>'"'+String(safeCell(value)).replaceAll('"','""')+'"').join(';')).join('\r\n');}
 function download(kind,data=s,rows=exportRows(data),type='sacos'){const stamp=new Date().toISOString(),filename=`descarga-${type}-${data.date}-${(data.supplier||'sin-proveedor').replace(/[^\p{L}\p{N}_-]/gu,'_')}.${kind}`;let content,mime;if(kind==='csv'){content=csvText(rows);mime='text/csv;charset=utf-8';}else{content='\uFEFF<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table>'+rows.map(r=>'<tr>'+r.map(v=>`<td style="mso-number-format:'\\@'">${escape(safeCell(v))}</td>`).join('')+'</tr>').join('')+'</table></body></html>';mime='application/vnd.ms-excel;charset=utf-8';}const url=URL.createObjectURL(new Blob([content],{type:mime})),a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);db.exports.unshift({filename,at:stamp,type});save();message(kind==='xls'?'Archivo Excel compatible generado (tabla HTML .xls; Excel puede solicitar confirmar el formato).':'CSV generado con separador punto y coma (;).');}
-const typeLabels={sacos:'Descarga en sacos',fresco:'Descarga Fresco',calculo:'Precintos y sal'};
+const typeLabels={sacos:'Descarga en sacos',fresco:'Descarga Fresco',calculo:'Cálculos de planta'};
 function recordType(r){return r.type||'sacos';}
 function recordSummary(r){
  if(r.type==='calculo'){const c=calc.result(r.data);return `${format(r.data.weight)} kg · ${c.count} precintos · ${format(c.saltKg)} kg de sal`;}
@@ -97,7 +97,7 @@ function mountHistory(){
   const button=e.target.closest('button');if(!button)return;
   const id=button.dataset.open||button.dataset.remove||button.dataset.export,r=db.records.find(x=>x.id===id);if(!r)return;
   if(button.dataset.open){
-   if(r.type==='calculo'){if((db.calcDraft.weight||db.calcDraft.supplier)&&!archiveData(db.calcDraft,'calculo',false))return;db.calcDraft=structuredClone(r.data);save();location.hash='calculos';}
+   if(r.type==='calculo'){if((db.calcDraft.weight||db.calcDraft.supplier)&&!archiveData(db.calcDraft,'calculo',false))return;db.calcDraft={...structuredClone(r.data),mode:'snapshot'};save();location.hash='calculos';}
    else if(r.type==='fresco'){if((db.frescoDraft.rows.length||db.frescoDraft.supplier||db.frescoDraft.reference)&&!archiveData(db.frescoDraft,'fresco',false))return;db.frescoDraft=structuredClone(r.data);save();location.hash='fresco';}
    else{if(hasData()&&!archive(false))return;s=structuredClone(r.data);s.rows.forEach(row=>row.others??=0);save();location.hash='descarga';}
   }
@@ -122,11 +122,29 @@ function archiveData(data,type,notify=true){
  if(notify)message(`Registro del ${data.date} guardado. Puedes consultarlo en Registros diarios.`);
  return true;
 }
+function calculationSources(){
+ return [{id:'draft:sacos',label:'Descarga en sacos actual',data:s,net:totals(s).net},{id:'draft:fresco',label:'Descarga Fresco actual',data:db.frescoDraft,net:fresco.totals(db.frescoDraft).net},...db.records.filter(r=>r.type!=='calculo').map(r=>({id:`record:${r.id}`,label:`${r.data.date} · ${r.data.supplier||'Sin proveedor'} · ${typeLabels[recordType(r)]}`,data:r.data,net:r.type==='fresco'?fresco.totals(r.data).net:totals(r.data).net}))];
+}
+function syncCalculationLink(){
+ const c=db.calcDraft;if(c?.mode!=='linked')return;
+ const source=calculationSources().find(r=>r.id===c.sourceId);
+ if(!source){c.mode='snapshot';c.sourceLabel=`${c.sourceLabel} · Origen no disponible; valores conservados`;return;}
+ Object.assign(c,{weight:source.net,supplier:source.data.supplier,date:source.data.date,bag:source.data.bag,sourceLabel:source.label});
+}
+function pinCalculation(type){
+ const c=db.calcDraft;if(c?.mode!=='linked'||c.sourceId!==`draft:${type}`)return;
+ const data=type==='fresco'?db.frescoDraft:s;
+ const record=db.records.find(r=>recordType(r)===type&&JSON.stringify(r.data)===JSON.stringify(data));
+ if(record)c.sourceId=`record:${record.id}`;
+ else{c.mode='snapshot';c.sourceLabel=`${c.sourceLabel} · Valores conservados`;}
+}
 function mountFresco(){
- fresco.mount({state:db.frescoDraft,onSave:data=>{db.frescoDraft=data;save();},onArchive:archiveData,onDownload:download,onNew:()=>{db.frescoDraft=fresco.initialState();save();mountFresco();},message});
+ fresco.mount({state:db.frescoDraft,onSave:data=>{db.frescoDraft=data;save();},onArchive:archiveData,onDownload:download,onNew:()=>{pinCalculation('fresco');db.frescoDraft=fresco.initialState();save();mountFresco();},onLoadDemo:()=>{if(containsData(db.frescoDraft,'fresco')&&!archiveData(db.frescoDraft,'fresco',false))return;pinCalculation('fresco');db.frescoDraft=fresco.demoState();save();mountFresco();message('Datos de prueba ilustrativos cargados. El registro anterior se conservó.');},message});
 }
 function mountCalculations(){
- const sources=[{label:'Descarga en sacos actual',data:s,net:totals(s).net},{label:'Descarga Fresco actual',data:db.frescoDraft,net:fresco.totals(db.frescoDraft).net},...db.records.filter(r=>r.type!=='calculo').map(r=>({label:`${r.data.date} · ${r.data.supplier||'Sin proveedor'} · ${typeLabels[recordType(r)]}`,data:r.data,net:r.type==='fresco'?fresco.totals(r.data).net:totals(r.data).net}))];
+ const sources=calculationSources(),origin=new URLSearchParams(location.hash.split('?')[1]||'').get('origen');
+ if(['sacos','fresco'].includes(origin)){const same=db.calcDraft.mode==='linked'&&db.calcDraft.sourceId===`draft:${origin}`;if(same||!containsData(db.calcDraft,'calculo')||archiveData(db.calcDraft,'calculo',false)){db.calcDraft.mode='linked';db.calcDraft.sourceId=`draft:${origin}`;save();}history.replaceState(null,'','#calculos');}
+ syncCalculationLink();
  calc.mount({state:db.calcDraft,sources,onSave:data=>{db.calcDraft=data;save();},onArchive:archiveData,onDownload:download,onNew:()=>{db.calcDraft=calc.initialState();save();mountCalculations();},message});
 }
 navigate();
