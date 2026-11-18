@@ -1,5 +1,5 @@
-import {initialState as base,format,escape} from './descarga-sacos.js';
-import {calculations} from './descarga-fresco.js';
+import {initialState as base,format,escape} from './descarga-sacos.js?v=4';
+import {calculations} from './descarga-fresco.js?v=4';
 const exact=n=>new Intl.NumberFormat('es-PE',{maximumFractionDigits:12}).format(n);
 export function initialState(previous={}) {
   return {...base(),weight:previous.manualWeight??0,bag:previous.bag??23.7,saltBag:previous.saltBag??25,start:previous.start??'',manualEnd:previous.manualEnd??null,sourceLabel:'Peso ingresado manualmente',note:''};
@@ -17,8 +17,8 @@ export function mount({state:s,sources,onSave,onArchive,onDownload,onNew,message
  <label>Proveedor<input data-calc="supplier"></label><label>Fecha<input data-calc="date" type="date" required></label>
  <label>Traer peso de una descarga<select id="calc-source"><option value="">Seleccionar descarga o registro…</option>${sources.map((r,i)=>`<option value="${i}">${escape(r.label)} · ${format(r.net)} kg</option>`).join('')}</select><small>Se copia el peso actual. El cálculo guardado conserva ese valor aunque luego cambie la descarga.</small></label>
  <label>Peso total del producto (kg)<input data-calc="weight" type="number" min="0" step="any" inputmode="decimal" required><small id="calc-origin"></small></label>
- <label>Saco de producto para precintos<select data-calc="bag"><option value="23.7">23.7 kg</option><option value="25">25 kg</option><option value="50">50 kg</option></select></label>
- <label>Saco de sal<select data-calc="saltBag"><option value="25">25 kg</option><option value="50">50 kg</option></select></label>
+ <label>Peso del saco de producto (kg)<input data-calc="bag" type="number" min="0.001" step="any" required><small>Según la presentación con la que trabaja el proveedor.</small></label>
+ <label>Peso del saco de sal (kg)<input data-calc="saltBag" type="number" min="0.001" step="any" required><small>Puedes ingresar 25, 50 u otro peso de saco.</small></label>
  <label>Nro inicio de precinto<input data-calc="start" inputmode="numeric" pattern="[0-9]*" placeholder="017121"></label>
  <label>Nro final de precinto<input id="calc-end" inputmode="numeric" pattern="[0-9]*"><small id="calc-end-mode"></small><button id="calc-auto" class="text-button">Restablecer automático</button></label>
  <label>Observaciones<input data-calc="note"></label></div></section>

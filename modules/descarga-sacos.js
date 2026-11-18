@@ -6,10 +6,10 @@ export function initialState() {
  const d = new Date();
  return {supplier:'',date:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,reference:0,unit:'TON',bag:23.7,start:'',manualEnd:null,rows:[],demo:false};
 }
-export const referenceKg = s => round(number(s.reference) * (s.unit === 'TON' ? 1000 : 1));
+export const referenceKg = s => Number((number(s.reference) * (s.unit === 'TON' ? 1000 : 1)).toPrecision(15));
 export function sampleBags(s) {
  const ton = referenceKg(s)/1000;
- const limits = number(s.bag) !== 50 ? [[2,2],[5,4],[10,8],[15,12],[Infinity,16]] : [[3,2],[5,4],[10,6],[20,8],[Infinity,10]];
+ const limits = String(s.samplePlan??(number(s.bag)===50?'50':'23.7')) !== '50' ? [[2,2],[5,4],[10,8],[15,12],[Infinity,16]] : [[3,2],[5,4],[10,6],[20,8],[Infinity,10]];
  return limits.find(([limit]) => ton <= limit)[1];
 }
 export function totals(s) {
@@ -32,7 +32,7 @@ export function view(s) {
  <p id="demo-note" class="warning" ${s.demo?'':'hidden'}>Hoja ISMAEL: 8 parihuelas, 279 sacos y 5432 kg. Incluye la fila de 8 sacos para muestreo.</p>
  <div class="fields">${input('supplier','Proveedor','text','placeholder="Ej. ISMAEL"')}${input('date','Fecha','date','required')}
  <label>Cantidad referencial<div class="joined"><input data-header="reference" type="number" min="0" step="any"><select data-header="unit" aria-label="Unidad referencial"><option>TON</option><option>KG</option></select></div><small id="conversion"></small></label>
- <label>Tipo de saco<select data-header="bag"><option value="23.7">23.7 kg</option><option value="25">25 kg</option><option value="50">50 kg</option></select></label>
+ <label>Peso del saco del proveedor (kg)<input data-header="bag" type="number" min="0.001" step="any" list="bag-suggestions" required><datalist id="bag-suggestions"><option value="23.7"><option value="25"><option value="50"><option value="80"><option value="100"></datalist><small>Ingresa cualquier peso positivo; las sugerencias son opcionales.</small></label><label>Tabla de muestreo aplicable<select data-header="samplePlan"><option value="23.7">Rangos de 23.7 / 25 kg</option><option value="50">Rangos de 50 kg</option></select><small>Para otro peso, elige la tabla que corresponde a tu operación.</small></label>
  ${input('start','Nro inicio de precinto','text','inputmode="numeric" pattern="[0-9]*" placeholder="017121"')}
  <label>Nro final de precinto<input id="end" type="text" inputmode="numeric" pattern="[0-9]*"><small id="end-mode"></small><button id="auto-end" class="text-button">Restablecer automático</button></label></div></section>
  <div class="metrics"><article class="metric accent"><span>SACOS A MUESTREAR</span><strong id="sample"></strong><small>Según tonelaje referencial y tipo de saco</small></article><article class="metric"><span>PRECINTOS NECESARIOS</span><strong id="seal-count"></strong><small id="seal-basis"></small></article><article class="metric"><span>PESO NETO TOTAL</span><strong><span id="net"></span> <em>kg</em></strong><small>Producto sin peso de parihuelas</small></article></div>
@@ -46,5 +46,5 @@ export function rowsView(s) {
 }
 export function exportRows(s) {
  const t=totals(s),p=seals(s);
- return [['Sistema de Control y Cálculos de Planta'],['Descarga en Sacos (Salado)'],['Proveedor',s.supplier],['Fecha',s.date],['Cantidad referencial',s.reference,s.unit],['Referencia kg',referenceKg(s)],['Tipo de saco kg',s.bag],['Precinto inicio',s.start],['Precinto final',p.end],['Final automático',p.automatic],['Modo final',s.manualEnd===null?'Automático':'Manual'],['Precintos necesarios',p.count,p.preliminary?'Preliminar':'Real'],['Sacos a muestrear',sampleBags(s)],...(s.demo?[['AVISO','Datos de prueba reproducidos de la hoja ISMAEL']]:[]),[],['N°','Producto + parihuela kg','Parihuela kg','Sacos','Neto kg','Cantidad otros','Otros / Observación'],...s.rows.map((r,i)=>[i+1,r.gross,r.tare,r.bags,round(r.gross-r.tare),r.others ?? 0,r.note]),['TOTALES',`${t.pallets} parihuelas`,'',t.bags,t.net,round(s.rows.reduce((n,r)=>n+number(r.others),0)),'']];
+ return [['Sistema de Control y Cálculos de Planta'],['Descarga en Sacos (Salado)'],['Proveedor',s.supplier],['Fecha',s.date],['Cantidad referencial',s.reference,s.unit],['Referencia kg',referenceKg(s)],['Tipo de saco kg',s.bag],['Precinto inicio',s.start],['Precinto final',p.end],['Final automático',p.automatic],['Modo final',s.manualEnd===null?'Automático':'Manual'],['Precintos necesarios',p.count,p.preliminary?'Preliminar':'Real'],['Sacos a muestrear',sampleBags(s)],['Tabla de muestreo',s.samplePlan??(Number(s.bag)===50?'50':'23.7')],...(s.demo?[['AVISO','Datos de prueba reproducidos de la hoja ISMAEL']]:[]),[],['N°','Producto + parihuela kg','Parihuela kg','Sacos','Neto kg','Cantidad otros','Otros / Observación'],...s.rows.map((r,i)=>[i+1,r.gross,r.tare,r.bags,round(r.gross-r.tare),r.others ?? 0,r.note]),['TOTALES',`${t.pallets} parihuelas`,'',t.bags,t.net,round(s.rows.reduce((n,r)=>n+number(r.others),0)),'']];
 }
