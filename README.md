@@ -65,3 +65,11 @@ Los sacos recibidos son la cantidad realmente enviada por el proveedor, independ
 **Registros diarios** filtra por fecha, proveedor y sección; permite abrir copias y exportar cada registro a CSV. Los registros permanecen entre días y reinicios en el mismo navegador y origen. No se sincronizan entre dispositivos: borrar los datos del navegador puede eliminarlos. Descargar un respaldo JSON conserva los registros guardados fuera del navegador; restaurarlo añade registros sin reemplazar los existentes y evita duplicados de contenido. CSV/Excel/PDF siguen disponibles por sección.
 
 Validación: pruebas en Chromium de guardar/nuevo sin duplicar, apertura de copia inmutable, filtros, persistencia tras recarga, recuperación de datos previos, cálculo independiente y fórmulas, CSV/PDF, restauración de respaldos en un navegador nuevo y diseño a 320/390/768/1440 px.
+
+## Corrección de recuperación y edición
+
+Registros diarios muestra los borradores con guardado automático además de los registros archivados. «Buscar registros anteriores en este navegador» revisa las claves locales de la aplicación y sus copias de recuperación, y añade los registros encontrados sin reemplazar los existentes. La carga acepta bases anteriores aunque falten listas como exports. Conserva una última copia válida y una instantánea anterior al primer cambio de cada día; un JSON principal dañado puede recuperarse de la última copia local válida. Los respaldos JSON ahora incluyen los tres borradores y el archivo diario.
+
+Esto recupera datos que todavía existen en ese navegador/origen; no puede obtener datos de otro dispositivo, de otro navegador o eliminados sin respaldo. No se agregan registros históricos inventados.
+
+Las cantidades referenciales admiten borrar y volver a escribir, con decimales, sin restaurar el valor anterior durante la escritura. La conversión TON/KG conserva hasta 15 dígitos significativos sin truncar a tres decimales. Los pesos del saco del proveedor y de los sacos de sal son números positivos editables, sin una lista cerrada. La cantidad de sacos recibidos es independiente. Para presentaciones de producto distintas de las estándar, Salado permite elegir explícitamente una de las dos tablas de muestreo disponibles. Las importaciones también aceptan pesos de saco personalizados.

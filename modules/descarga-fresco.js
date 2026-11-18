@@ -1,4 +1,4 @@
-import {initialState as baseState,number,round,format,escape,referenceKg} from './descarga-sacos.js';
+import {initialState as baseState,number,round,format,escape,referenceKg} from './descarga-sacos.js?v=4';
 
 export const states = {line:'Pasa a línea',pending:'No pasa a línea (Pendiente)'};
 export function initialState() {
@@ -31,7 +31,7 @@ export function view() {
   <section class="panel"><div class="section-title"><h2><span>01</span> Datos del lote</h2></div><div class="fields">
   ${header('supplier','Proveedor','text','placeholder="Nombre del proveedor"')}${header('date','Fecha','date','required')}
   <label>Cantidad referencial<div class="joined"><input data-fresco="reference" type="number" min="0" step="any"><select data-fresco="unit" aria-label="Unidad referencial"><option>TON</option><option>KG</option></select></div><small id="f-conversion"></small></label>
-  <label>Tipo de saco / Destino<select data-fresco="bag"><option value="23.7">23.7 kg</option><option value="25">25 kg</option><option value="50">50 kg</option></select></label>
+  <label>Peso del saco / Presentación del proveedor (kg)<input data-fresco="bag" type="number" min="0.001" step="any" required><small>Editable según el proveedor; no limita la cantidad de sacos recibidos.</small></label>
   ${header('receivedBags','Sacos recibidos del proveedor','number','min="0" step="1" required')}
   ${header('destinationOther','Otros / Destino','text','placeholder="Detalle adicional del destino"')}
   <label>Estado general del lote<select data-fresco="status">${options()}</select><small>El estado general se propone para nuevas filas. Cada dino conserva su estado individual.</small></label>
@@ -72,13 +72,14 @@ export function mount({state,onSave,onArchive,onDownload,onNew,message}) {
   document.querySelectorAll('[data-fresco]').forEach(el=>{
     const key=el.dataset.fresco;el.value=s[key]??'';
     el.addEventListener('input',()=>{
-      if((key==='start'&&!/^\d*$/.test(el.value))||!el.validity.valid||(el.type==='number'&&(el.value===''||!Number.isFinite(Number(el.value))))) {reject(el,s[key]??'','Ingresa un valor válido y no negativo.');return;}
-      if(key==='unit') {s.reference=round(s.reference*(el.value==='KG'?1000:0.001));$('[data-fresco="reference"]').value=s.reference;}
+      if((key==='start'&&!/^\d*$/.test(el.value))||!el.validity.valid||(el.type==='number'&&(el.value===''||!Number.isFinite(Number(el.value))))) {return;}
+      if(key==='unit') {s.reference=Number((s.reference*(el.value==='KG'?1000:0.001)).toPrecision(15));$('[data-fresco="reference"]').value=s.reference;}
       s[key]=['reference','bag','saltBag','manualWeight','receivedBags'].includes(key)?Number(el.value):el.value;
       if(key==='status') $('#f-form').elements.status.value=s.status;
       persist();
     });
   });
+  document.querySelectorAll('[data-fresco]').forEach(el=>el.addEventListener('blur',()=>{if(!el.validity.valid||el.type==='number'&&el.value==='')el.value=s[el.dataset.fresco]??'';}));
   $('#f-form').elements.status.value=s.status;
   $('#f-form').onsubmit=e=>{
     e.preventDefault();const f=e.target,read=key=>f.elements[key].value;
