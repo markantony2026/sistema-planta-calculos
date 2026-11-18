@@ -53,3 +53,15 @@ El saco de 25 kg aplica los mismos umbrales de muestreo de 23.7 kg. Cada fila pe
 ## Validación de la actualización
 
 Verificado con Chromium/Playwright: recuperación de datos de la versión anterior, edición de bruto/tara/sacos/otros y bandejas, muestreo de 25 kg, estados generales e individuales, netos por estado, conversión TON/KG, precintos inclusivos y manuales, sal a 0.012 y sacos de 25/50 kg, simulación manual, persistencia, historial por sección, CSV/Excel, PDF A4 y anchos 320/390/768/1440 px. Sin errores JavaScript en los flujos verificados.
+
+## Registros diarios y calculadora independiente
+
+La sección **03 · Precintos y sal** reúne el cálculo de insumos fuera de Descarga Fresco. Permite introducir peso total kg o copiarlo de una descarga actual o guardada. Copia proveedor, fecha, presentación y peso como una instantánea: cambios posteriores de la descarga no alteran el cálculo. Conserva el cálculo anterior de Fresco al actualizar la aplicación.
+
+Los sacos recibidos son la cantidad realmente enviada por el proveedor, independiente de los sacos de sal calculados. Fresco cuenta con un campo explícito de sacos recibidos. La calculadora informa kg de sal (`peso × 0.012`), sacos de sal equivalentes y sacos completos para disponer (redondeo superior), además del correlativo inclusivo de precintos.
+
+**Guardar registro del día** conserva una copia. **Guardar y empezar otro** guarda antes de limpiar y abre un borrador con fecha actual. Repetir el guardado sin cambios no duplica el registro; editar una copia y guardarla crea una nueva versión y conserva la anterior. Si falla el guardado por falta de espacio, no se limpia el registro.
+
+**Registros diarios** filtra por fecha, proveedor y sección; permite abrir copias y exportar cada registro a CSV. Los registros permanecen entre días y reinicios en el mismo navegador y origen. No se sincronizan entre dispositivos: borrar los datos del navegador puede eliminarlos. Descargar un respaldo JSON conserva los registros guardados fuera del navegador; restaurarlo añade registros sin reemplazar los existentes y evita duplicados de contenido. CSV/Excel/PDF siguen disponibles por sección.
+
+Validación: pruebas en Chromium de guardar/nuevo sin duplicar, apertura de copia inmutable, filtros, persistencia tras recarga, recuperación de datos previos, cálculo independiente y fórmulas, CSV/PDF, restauración de respaldos en un navegador nuevo y diseño a 320/390/768/1440 px.
