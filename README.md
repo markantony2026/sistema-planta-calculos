@@ -85,3 +85,25 @@ Cada descarga tiene «Calcular con esta descarga». El modo vinculado mantiene p
 Fresco incorpora **Cargar datos de prueba**: proveedor identificado como ejemplo, 3 dinos con taras variables, 90 bandejas, 2250 kg netos y estados mixtos. Son datos ilustrativos, no una transcripción de un registro real. El registro actual se archiva antes de cargar el ejemplo.
 
 Validación Chromium: ejemplo Fresco, conservación del registro previo, sincronización al editar Fresco/Salado, modo manual independiente, persistencia, vínculo fijado al abrir otra descarga, valores históricos inmutables, CSV/PDF y anchos 320/390/768/1440 px sin errores JavaScript.
+
+## Precintos por sacos y estimado referencial
+
+Dentro de Cálculos de planta se elige el método de precintos:
+
+- **Por cantidad real de sacos:** 1 precinto por saco. La cantidad se vincula al total de sacos de Salado o al campo de sacos recibidos de Fresco; también admite ingreso manual.
+- **Por peso neto pesado:** se mantiene el cálculo anterior `ceil(neto kg / peso saco)`.
+- **Por peso referencial:** `ceil(referencia kg / peso saco)`, con conversión TON/KG. La tarjeta de precintos referenciales siempre muestra este estimado por separado.
+
+El correlativo inclusivo usa el método seleccionado. La sal continúa calculándose con el peso neto/manual del producto, independientemente del método de precintos.
+
+## Rumas de 120 cajas
+
+Nueva herramienta dentro de Cálculos de planta. Ingresa el lote completo como texto numérico (conserva ceros), cajas y observación; permite editar, eliminar y reordenar los lotes. Extrae la referencia `3 primeros-4 últimos` y distribuye las cajas en orden en rumas de capacidad fija 120. Un lote puede repartirse entre varias rumas; se muestra el intervalo de cajas usado, saldo del lote y cajas que faltan tras cada aporte.
+
+Ubicaciones confirmadas por el usuario: primer lote **Abajo**, intermedios **Medio**, el que completa **Arriba**; el último tramo de la ruma incompleta **Último**. Si un solo lote ocupa la ruma completa, aparece **Abajo / Arriba**. La ruma final conserva la cantidad real y muestra cuántas cajas faltan para 120.
+
+«Cargar datos de la imagen» incluye los 15 lotes y cantidades transcritos de la hoja compartida (2100 cajas): 17 rumas completas y una última con 60 cajas, faltando otras 60. El ejemplo se identifica como transcripción a revisar. Se archiva el trabajo anterior antes de cargarlo.
+
+Las rumas tienen borrador independiente, registros diarios, respaldo/restauración y CSV/Excel/PDF, incluyendo todas las asignaciones y saldos. Los cálculos anteriores y las descargas se conservan.
+
+Pruebas de fórmulas y conservación: `node --test tests/calculos.test.mjs`. Verificación de navegador con Chromium: métodos de precintos, vínculo de cantidades y referencia, ingreso manual, sucesión de imagen, edición/orden, guardado, recarga, historial, respaldo/restauración, CSV/PDF y pantallas 320/390/768/1440 px.

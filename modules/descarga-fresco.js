@@ -1,4 +1,4 @@
-import {initialState as baseState,number,round,format,escape,referenceKg} from './descarga-sacos.js?v=5';
+import {initialState as baseState,number,round,format,escape,referenceKg} from './descarga-sacos.js?v=6';
 
 export const states = {line:'Pasa a línea',pending:'No pasa a línea (Pendiente)'};
 export function initialState() {

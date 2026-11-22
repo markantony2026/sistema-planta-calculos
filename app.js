@@ -1,7 +1,8 @@
-import {loadDatabase,writeDatabase,recoveryCandidates,hasData as containsData} from './modules/almacenamiento.js?v=5';
-import * as calc from './modules/calculos-planta.js?v=5';
-import * as fresco from './modules/descarga-fresco.js?v=5';
-import {initialState,demoState,view,rowsView,totals,seals,sampleBags,referenceKg,format,escape,exportRows,round} from './modules/descarga-sacos.js?v=5';
+import * as rumas from './modules/rumas.js?v=6';
+import {loadDatabase,writeDatabase,recoveryCandidates,hasData as containsData} from './modules/almacenamiento.js?v=6';
+import * as calc from './modules/calculos-planta.js?v=6';
+import * as fresco from './modules/descarga-fresco.js?v=6';
+import {initialState,demoState,view,rowsView,totals,seals,sampleBags,referenceKg,format,escape,exportRows,round} from './modules/descarga-sacos.js?v=6';
 const $=selector=>document.querySelector(selector);
 const loaded=loadDatabase();
 let db=loaded.db;
@@ -58,9 +59,10 @@ function archive(notify){if(!hasData()){if(notify)message('Ingresa datos antes d
 function safeCell(value){return typeof value==='string'&&/^[\s]*[=+\-@]/.test(value)?"'"+value:value;}
 export function csvText(rows){return '\uFEFF'+rows.map(row=>row.map(value=>'"'+String(safeCell(value)).replaceAll('"','""')+'"').join(';')).join('\r\n');}
 function download(kind,data=s,rows=exportRows(data),type='sacos'){const stamp=new Date().toISOString(),filename=`descarga-${type}-${data.date}-${(data.supplier||'sin-proveedor').replace(/[^\p{L}\p{N}_-]/gu,'_')}.${kind}`;let content,mime;if(kind==='csv'){content=csvText(rows);mime='text/csv;charset=utf-8';}else{content='\uFEFF<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table>'+rows.map(r=>'<tr>'+r.map(v=>`<td style="mso-number-format:'\\@'">${escape(safeCell(v))}</td>`).join('')+'</tr>').join('')+'</table></body></html>';mime='application/vnd.ms-excel;charset=utf-8';}const url=URL.createObjectURL(new Blob([content],{type:mime})),a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);db.exports.unshift({filename,at:stamp,type});save();message(kind==='xls'?'Archivo Excel compatible generado (tabla HTML .xls; Excel puede solicitar confirmar el formato).':'CSV generado con separador punto y coma (;).');}
-const typeLabels={sacos:'Descarga en sacos',fresco:'Descarga Fresco',calculo:'Cálculos de planta'};
+const typeLabels={sacos:'Descarga en sacos',fresco:'Descarga Fresco',calculo:'Cálculos de planta',rumas:'Rumas de 120 cajas'};
 function recordType(r){return r.type||'sacos';}
 function recordSummary(r){
+ if(r.type==='rumas'){const a=rumas.allocate(r.data.rows);return `${format(a.total)} cajas · ${a.full} rumas completas · ${a.partial} cajas en última incompleta`;}
  if(r.type==='calculo'){const c=calc.result(r.data);return `${format(r.data.weight)} kg · ${c.count} precintos · ${format(c.saltKg)} kg de sal`;}
  const t=r.type==='fresco'?fresco.totals(r.data):totals(r.data);
  return r.type==='fresco'?`${t.dinos} dinos · ${t.trays} bandejas · ${format(t.net)} kg`:`${t.pallets} parihuelas · ${t.bags} sacos recibidos · ${format(t.net)} kg`;
@@ -73,7 +75,7 @@ function mountHistory(){
  <section class="panel"><h2>Historial de exportaciones</h2>${db.exports.length?db.exports.map(x=>`<p>${escape(x.filename)}<br><small>${escape(new Date(x.at).toLocaleString('es-PE'))}</small></p>`).join(''):'<p class="empty">Aún no hay exportaciones.</p>'}</section>`;
  function draw(){
   const date=$('#record-date').value,supplier=$('#record-supplier').value.toLocaleLowerCase(),type=$('#record-type').value,typeFilter=type;
-  const drafts=[['sacos',s,'descarga'],['fresco',db.frescoDraft,'fresco'],['calculo',db.calcDraft,'calculos']].filter(([type,data])=>containsData(data,type)&&(!date||data.date===date)&&(!supplier||(data.supplier||'').toLocaleLowerCase().includes(supplier))&&(!typeFilter||type===typeFilter));
+  const drafts=[['sacos',s,'descarga'],['fresco',db.frescoDraft,'fresco'],['calculo',db.calcDraft,'calculos'],['rumas',db.rumaDraft,'calculos?herramienta=rumas']].filter(([type,data])=>containsData(data,type)&&(!date||data.date===date)&&(!supplier||(data.supplier||'').toLocaleLowerCase().includes(supplier))&&(!typeFilter||type===typeFilter));
   $('#draft-list').innerHTML=drafts.length?drafts.map(([type,data,route])=>`<article class="history-card"><div><strong>${escape(data.supplier||'Sin proveedor')}</strong><p>${escape(data.date)} · ${typeLabels[type]} · En curso<br>${recordSummary({type,data})}</p></div><a class="button-link secondary" href="#${route}">Continuar y editar</a></article>`).join(''):'<p class="empty">No hay registros en curso con estos filtros.</p>';
   const records=db.records.filter(r=>(!date||r.data.date===date)&&(!supplier||(r.data.supplier||'').toLocaleLowerCase().includes(supplier))&&(!type||recordType(r)===type)).sort((a,b)=>b.data.date.localeCompare(a.data.date)||b.savedAt.localeCompare(a.savedAt));
   $('#record-count').textContent=`${records.length} registros`;
@@ -82,13 +84,13 @@ function mountHistory(){
  for(const id of ['record-date','record-supplier','record-type'])$('#'+id).oninput=draw;
  $('#clear-filters').onclick=()=>{for(const id of ['record-date','record-supplier','record-type'])$('#'+id).value='';draw();};
  $('#recover-local').onclick=()=>{const previous=db.records.slice();let count=0;for(const r of recoveryCandidates()){if(db.records.some(x=>recordType(x)===recordType(r)&&JSON.stringify(x.data)===JSON.stringify(r.data)))continue;db.records.push({...r,id:crypto.randomUUID()});count++;}if(!save()){db.records=previous;return;}draw();message(count?`${count} registros locales recuperados. Se conservaron los existentes.`:'No se encontraron más registros en este navegador. Revisa el navegador o dispositivo donde los ingresaste, o restaura un respaldo.');};
- $('#backup').onclick=()=>fileDownload(JSON.stringify({format:'planta-registros',version:1,createdAt:new Date().toISOString(),records:db.records,draft:s,frescoDraft:db.frescoDraft,calcDraft:db.calcDraft},null,2),'application/json',`registros-planta-${initialState().date}.json`);
+ $('#backup').onclick=()=>fileDownload(JSON.stringify({format:'planta-registros',version:1,createdAt:new Date().toISOString(),records:db.records,draft:s,frescoDraft:db.frescoDraft,calcDraft:db.calcDraft,rumaDraft:db.rumaDraft},null,2),'application/json',`registros-planta-${initialState().date}.json`);
  $('#restore').onchange=async e=>{
   try{
    const file=e.target.files[0];if(!file)return;if(file.size>20*1024*1024)throw Error('El respaldo supera 20 MB.');
    const data=JSON.parse(await file.text());if(data.format!=='planta-registros'||!Array.isArray(data.records)||!data.records.every(validRecord))throw Error('El archivo no es un respaldo válido de registros.');
    const previous=db.records.slice();let count=0;
-   const candidates=data.records.slice();for(const [type,draft] of [['sacos',data.draft],['fresco',data.frescoDraft],['calculo',data.calcDraft]]){if(containsData(draft,type)){const r={id:crypto.randomUUID(),type,savedAt:new Date().toISOString(),data:draft};if(!validRecord(r))throw Error('El respaldo contiene un borrador no válido.');candidates.push(r);}}
+   const candidates=data.records.slice();for(const [type,draft] of [['sacos',data.draft],['fresco',data.frescoDraft],['calculo',data.calcDraft],['rumas',data.rumaDraft]]){if(containsData(draft,type)){const r={id:crypto.randomUUID(),type,savedAt:new Date().toISOString(),data:draft};if(!validRecord(r))throw Error('El respaldo contiene un borrador no válido.');candidates.push(r);}}
    for(const r of candidates){if(db.records.some(x=>recordType(x)===recordType(r)&&JSON.stringify(x.data)===JSON.stringify(r.data)))continue;db.records.push({...r,id:crypto.randomUUID()});count++;}
    if(!save()){db.records=previous;return;}draw();message(`${count} registros restaurados. Los registros existentes se conservaron.`);
   }catch(error){message(error instanceof SyntaxError?'No se puede leer el archivo JSON.':error.message);}finally{e.target.value='';}
@@ -97,19 +99,21 @@ function mountHistory(){
   const button=e.target.closest('button');if(!button)return;
   const id=button.dataset.open||button.dataset.remove||button.dataset.export,r=db.records.find(x=>x.id===id);if(!r)return;
   if(button.dataset.open){
-   if(r.type==='calculo'){if((db.calcDraft.weight||db.calcDraft.supplier)&&!archiveData(db.calcDraft,'calculo',false))return;db.calcDraft={...structuredClone(r.data),mode:'snapshot'};save();location.hash='calculos';}
-   else if(r.type==='fresco'){if((db.frescoDraft.rows.length||db.frescoDraft.supplier||db.frescoDraft.reference)&&!archiveData(db.frescoDraft,'fresco',false))return;db.frescoDraft=structuredClone(r.data);save();location.hash='fresco';}
+   if(r.type==='rumas'){if(containsData(db.rumaDraft,'rumas')&&!archiveData(db.rumaDraft,'rumas',false))return;db.rumaDraft=structuredClone(r.data);save();location.hash='calculos?herramienta=rumas';return;}
+   if(r.type==='calculo'){if(containsData(db.calcDraft,'calculo')&&!archiveData(db.calcDraft,'calculo',false))return;db.calcDraft={...structuredClone(r.data),mode:'snapshot'};save();location.hash='calculos';}
+   else if(r.type==='fresco'){if(containsData(db.frescoDraft,'fresco')&&!archiveData(db.frescoDraft,'fresco',false))return;db.frescoDraft=structuredClone(r.data);save();location.hash='fresco';}
    else{if(hasData()&&!archive(false))return;s=structuredClone(r.data);s.rows.forEach(row=>row.others??=0);save();location.hash='descarga';}
   }
-  if(button.dataset.export){const rows=r.type==='calculo'?calc.exportRows(r.data):r.type==='fresco'?fresco.exportRows(r.data):exportRows(r.data);download('csv',r.data,rows,recordType(r));}
+  if(button.dataset.export){const rows=r.type==='rumas'?rumas.exportRows(r.data):r.type==='calculo'?calc.exportRows(r.data):r.type==='fresco'?fresco.exportRows(r.data):exportRows(r.data);download('csv',r.data,rows,recordType(r));}
   if(button.dataset.remove&&confirm('¿Eliminar este registro guardado? Los demás registros se conservarán.')){const previous=db.records;db.records=db.records.filter(x=>x.id!==id);if(!save())db.records=previous;draw();}
  };
  draw();
 }
 function validRecord(r){
  const d=r?.data,positive=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
- if(!d||typeof r.id!=='string'||typeof r.savedAt!=='string'||!Number.isFinite(Date.parse(r.savedAt))||typeof d.supplier!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d.date)||!(Number.isFinite(Number(d.bag))&&Number(d.bag)>0)||!['sacos','fresco','calculo'].includes(recordType(r)))return false;
- if(r.type==='calculo')return positive(d.weight)&&positive(d.saltBag)&&d.saltBag>0&&typeof d.start==='string'&&/^\d*$/.test(d.start)&&(d.manualEnd===null||typeof d.manualEnd==='string'&&/^\d*$/.test(d.manualEnd));
+ if(!d||typeof r.id!=='string'||typeof r.savedAt!=='string'||!Number.isFinite(Date.parse(r.savedAt))||typeof d.supplier!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d.date)||!(Number.isFinite(Number(d.bag))&&Number(d.bag)>0)||!['sacos','fresco','calculo','rumas'].includes(recordType(r)))return false;
+ if(r.type==='rumas'){try{return Array.isArray(d.rows)&&d.rows.every(row=>typeof row.id==='string'&&/^[A-Za-z0-9_-]+$/.test(row.id)&&typeof row.lot==='string'&&/^\d{7,}$/.test(row.lot)&&Number.isSafeInteger(row.boxes)&&row.boxes>=0&&typeof row.note==='string')&&!!rumas.allocate(d.rows);}catch{return false;}}
+ if(r.type==='calculo')return (d.bagCount===undefined||Number.isSafeInteger(d.bagCount)&&d.bagCount>=0)&&(d.sealMode===undefined||['weight','bags','reference'].includes(d.sealMode))&&positive(d.weight)&&positive(d.saltBag)&&d.saltBag>0&&typeof d.start==='string'&&/^\d*$/.test(d.start)&&(d.manualEnd===null||typeof d.manualEnd==='string'&&/^\d*$/.test(d.manualEnd));
  return Array.isArray(d.rows)&&d.rows.every(row=>typeof row.id==='string'&&/^[A-Za-z0-9_-]+$/.test(row.id)&&positive(row.gross)&&positive(row.tare)&&row.gross>=row.tare&&typeof row.note==='string'&&(r.type==='fresco'?positive(row.trays)&&Number.isInteger(row.trays)&&['line','pending'].includes(row.status):positive(row.bags)&&Number.isInteger(row.bags)));
 }
 function fileDownload(content,mime,filename){const url=URL.createObjectURL(new Blob([content],{type:mime})),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}
@@ -123,13 +127,13 @@ function archiveData(data,type,notify=true){
  return true;
 }
 function calculationSources(){
- return [{id:'draft:sacos',label:'Descarga en sacos actual',data:s,net:totals(s).net},{id:'draft:fresco',label:'Descarga Fresco actual',data:db.frescoDraft,net:fresco.totals(db.frescoDraft).net},...db.records.filter(r=>r.type!=='calculo').map(r=>({id:`record:${r.id}`,label:`${r.data.date} · ${r.data.supplier||'Sin proveedor'} · ${typeLabels[recordType(r)]}`,data:r.data,net:r.type==='fresco'?fresco.totals(r.data).net:totals(r.data).net}))];
+ return [{id:'draft:sacos',label:'Descarga en sacos actual',data:s,net:totals(s).net,bags:totals(s).bags},{id:'draft:fresco',label:'Descarga Fresco actual',data:db.frescoDraft,net:fresco.totals(db.frescoDraft).net,bags:Number(db.frescoDraft.receivedBags||0)},...db.records.filter(r=>['sacos','fresco'].includes(recordType(r))).map(r=>({id:`record:${r.id}`,label:`${r.data.date} · ${r.data.supplier||'Sin proveedor'} · ${typeLabels[recordType(r)]}`,data:r.data,net:r.type==='fresco'?fresco.totals(r.data).net:totals(r.data).net,bags:r.type==='fresco'?Number(r.data.receivedBags||0):totals(r.data).bags}))];
 }
 function syncCalculationLink(){
  const c=db.calcDraft;if(c?.mode!=='linked')return;
  const source=calculationSources().find(r=>r.id===c.sourceId);
  if(!source){c.mode='snapshot';c.sourceLabel=`${c.sourceLabel} · Origen no disponible; valores conservados`;return;}
- Object.assign(c,{weight:source.net,supplier:source.data.supplier,date:source.data.date,bag:source.data.bag,sourceLabel:source.label});
+ Object.assign(c,{weight:source.net,supplier:source.data.supplier,date:source.data.date,bag:source.data.bag,bagCount:source.bags,reference:source.data.reference||0,unit:source.data.unit||'TON',sourceLabel:source.label});
 }
 function pinCalculation(type){
  const c=db.calcDraft;if(c?.mode!=='linked'||c.sourceId!==`draft:${type}`)return;
@@ -142,9 +146,13 @@ function mountFresco(){
  fresco.mount({state:db.frescoDraft,onSave:data=>{db.frescoDraft=data;save();},onArchive:archiveData,onDownload:download,onNew:()=>{pinCalculation('fresco');db.frescoDraft=fresco.initialState();save();mountFresco();},onLoadDemo:()=>{if(containsData(db.frescoDraft,'fresco')&&!archiveData(db.frescoDraft,'fresco',false))return;pinCalculation('fresco');db.frescoDraft=fresco.demoState();save();mountFresco();message('Datos de prueba ilustrativos cargados. El registro anterior se conservó.');},message});
 }
 function mountCalculations(){
+ if(new URLSearchParams(location.hash.split('?')[1]||'').get('herramienta')==='rumas'){mountRumas();return;}
  const sources=calculationSources(),origin=new URLSearchParams(location.hash.split('?')[1]||'').get('origen');
  if(['sacos','fresco'].includes(origin)){const same=db.calcDraft.mode==='linked'&&db.calcDraft.sourceId===`draft:${origin}`;if(same||!containsData(db.calcDraft,'calculo')||archiveData(db.calcDraft,'calculo',false)){db.calcDraft.mode='linked';db.calcDraft.sourceId=`draft:${origin}`;save();}history.replaceState(null,'','#calculos');}
  syncCalculationLink();
  calc.mount({state:db.calcDraft,sources,onSave:data=>{db.calcDraft=data;save();},onArchive:archiveData,onDownload:download,onNew:()=>{db.calcDraft=calc.initialState();save();mountCalculations();},message});
+}
+function mountRumas(){
+ rumas.mount({state:db.rumaDraft,onSave:data=>{db.rumaDraft=data;save();},onArchive:archiveData,onDownload:download,onNew:()=>{db.rumaDraft=rumas.initialState();save();mountRumas();},onLoadDemo:()=>{if(containsData(db.rumaDraft,'rumas')&&!archiveData(db.rumaDraft,'rumas',false))return;db.rumaDraft=rumas.demoState();save();mountRumas();message('Imagen cargada: 15 lotes y 2100 cajas.');},message});
 }
 navigate();
